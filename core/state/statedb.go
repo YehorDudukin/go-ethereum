@@ -1434,3 +1434,12 @@ func (s *StateDB) Witness() *stateless.Witness {
 func (s *StateDB) AccessEvents() *AccessEvents {
 	return s.accessEvents
 }
+
+func (s *StateDB) SetDiffStorage(diffStorage types.DiffStorage) {
+	fmt.Println("SetDiffStorage")
+}
+
+func (s *StateDB) GetDirtyStorage() types.DiffStorage {
+	fmt.Println("GetDirtyStorage")
+	return types.DiffStorage{}
+}
