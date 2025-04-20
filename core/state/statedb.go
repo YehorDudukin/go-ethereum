@@ -1440,6 +1440,22 @@ func (s *StateDB) SetDiffStorage(diffStorage types.DiffStorage) {
 }
 
 func (s *StateDB) GetDirtyStorage() types.DiffStorage {
-	fmt.Println("GetDirtyStorage")
-	return types.DiffStorage{}
+	diff := make(types.DiffStorage)
+
+	for addr, obj := range s.stateObjects {
+		if obj == nil || obj.selfDestructed || len(obj.dirtyStorage) == 0 {
+			continue
+		}
+
+		storageDiff := make(map[common.Hash]common.Hash)
+		for key, value := range obj.dirtyStorage {
+			storageDiff[key] = value
+		}
+
+		if len(storageDiff) > 0 {
+			diff[addr] = storageDiff
+		}
+	}
+
+	return diff
 }
