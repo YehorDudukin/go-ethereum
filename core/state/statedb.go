@@ -1447,18 +1447,16 @@ func (s *StateDB) GetDirtyStorage() types.DiffStorage {
 	diff := make(types.DiffStorage)
 
 	for addr, obj := range s.stateObjects {
-		if obj == nil || obj.selfDestructed || len(obj.dirtyStorage) == 0 {
+		if obj == nil {
 			continue
 		}
 
-		storageDiff := make(map[common.Hash]common.Hash)
-		for key, value := range obj.dirtyStorage {
-			storageDiff[key] = value
+		storage := make(map[common.Hash]common.Hash, len(obj.dirtyStorage))
+		for k, v := range obj.dirtyStorage {
+			storage[k] = v
 		}
 
-		if len(storageDiff) > 0 {
-			diff[addr] = storageDiff
-		}
+		diff[addr] = storage
 	}
 
 	return diff
