@@ -498,6 +498,7 @@ func (s *stateObject) deepCopy(db *StateDB, sharedDiffStorage types.DiffStorage)
 		code:               s.code,
 		originStorage:      s.originStorage.Copy(),
 		pendingStorage:     s.pendingStorage.Copy(),
+		dirtyStorage:       s.dirtyStorage.Copy(),
 		sharedDiffStorage:  sharedDiffStorage,
 		uncommittedStorage: s.uncommittedStorage.Copy(),
 		dirtyCode:          s.dirtyCode,
