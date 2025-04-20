@@ -1439,19 +1439,13 @@ func (s *StateDB) AccessEvents() *AccessEvents {
 }
 
 func (s *StateDB) SetDiffStorage(diffStorage types.DiffStorage) {
-	s.sharedDiffStorage = diffStorage
+	for addr, slots := range diffStorage {
+		for key, value := range slots {
+			s.SetState(addr, key, value)
+		}
+	}
 }
 
 func (s *StateDB) GetDirtyStorage() types.DiffStorage {
-	filtered := make(types.DiffStorage, len(s.sharedDiffStorage))
-	for addr, slots := range s.sharedDiffStorage {
-		obj := s.stateObjects[addr]
-		if obj != nil && obj.selfDestructed {
-			continue
-		}
-
-		filtered[addr] = slots
-	}
-
-	return filtered
+	return s.sharedDiffStorage
 }
