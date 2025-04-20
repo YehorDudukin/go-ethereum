@@ -103,6 +103,8 @@ type StateDB struct {
 	// perspective. This map is populated at the transaction boundaries.
 	mutations map[common.Address]*mutation
 
+	sharedDiffStorage types.DiffStorage
+
 	// DB error.
 	// State objects are used by the consensus core and VM which are
 	// unable to deal with database-level errors. Any error that occurs
@@ -175,6 +177,7 @@ func New(root common.Hash, db Database) (*StateDB, error) {
 		stateObjects:         make(map[common.Address]*stateObject),
 		stateObjectsDestruct: make(map[common.Address]*stateObject),
 		mutations:            make(map[common.Address]*mutation),
+		sharedDiffStorage:    make(types.DiffStorage),
 		logs:                 make(map[common.Hash][]*types.Log),
 		preimages:            make(map[common.Hash][]byte),
 		journal:              newJournal(),
@@ -598,7 +601,7 @@ func (s *StateDB) getStateObject(addr common.Address) *stateObject {
 		}
 	}
 	// Insert into the live set
-	obj := newObject(s, addr, acct)
+	obj := newObject(s, addr, acct, s.sharedDiffStorage)
 	s.setStateObject(obj)
 	return obj
 }
@@ -619,7 +622,7 @@ func (s *StateDB) getOrNewStateObject(addr common.Address) *stateObject {
 // createObject creates a new state object. The assumption is held there is no
 // existing account with the given address, otherwise it will be silently overwritten.
 func (s *StateDB) createObject(addr common.Address) *stateObject {
-	obj := newObject(s, addr, nil)
+	obj := newObject(s, addr, nil, s.sharedDiffStorage)
 	s.journal.createObject(addr)
 	s.setStateObject(obj)
 	return obj
@@ -685,11 +688,11 @@ func (s *StateDB) Copy() *StateDB {
 	}
 	// Deep copy cached state objects.
 	for addr, obj := range s.stateObjects {
-		state.stateObjects[addr] = obj.deepCopy(state)
+		state.stateObjects[addr] = obj.deepCopy(state, s.sharedDiffStorage)
 	}
 	// Deep copy destructed state objects.
 	for addr, obj := range s.stateObjectsDestruct {
-		state.stateObjectsDestruct[addr] = obj.deepCopy(state)
+		state.stateObjectsDestruct[addr] = obj.deepCopy(state, s.sharedDiffStorage)
 	}
 	// Deep copy the object state markers.
 	for addr, op := range s.mutations {
@@ -1436,26 +1439,19 @@ func (s *StateDB) AccessEvents() *AccessEvents {
 }
 
 func (s *StateDB) SetDiffStorage(diffStorage types.DiffStorage) {
-	fmt.Println("SetDiffStorage")
+	s.sharedDiffStorage = diffStorage
 }
 
 func (s *StateDB) GetDirtyStorage() types.DiffStorage {
-	diff := make(types.DiffStorage)
-
-	for addr, obj := range s.stateObjects {
-		if obj == nil || obj.selfDestructed || len(obj.dirtyStorage) == 0 {
+	filtered := make(types.DiffStorage, len(s.sharedDiffStorage))
+	for addr, slots := range s.sharedDiffStorage {
+		obj := s.stateObjects[addr]
+		if obj != nil && obj.selfDestructed {
 			continue
 		}
 
-		storageDiff := make(map[common.Hash]common.Hash)
-		for key, value := range obj.dirtyStorage {
-			storageDiff[key] = value
-		}
-
-		if len(storageDiff) > 0 {
-			diff[addr] = storageDiff
-		}
+		filtered[addr] = slots
 	}
 
-	return diff
+	return filtered
 }

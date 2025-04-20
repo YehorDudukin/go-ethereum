@@ -55,9 +55,10 @@ type stateObject struct {
 	trie Trie   // storage trie, which becomes non-nil on first access
 	code []byte // contract bytecode, which gets set when code is loaded
 
-	originStorage  Storage // Storage entries that have been accessed within the current block
-	dirtyStorage   Storage // Storage entries that have been modified within the current transaction
-	pendingStorage Storage // Storage entries that have been modified within the current block
+	originStorage     Storage // Storage entries that have been accessed within the current block
+	dirtyStorage      Storage // Storage entries that have been modified within the current transaction
+	pendingStorage    Storage // Storage entries that have been modified within the current block
+	sharedDiffStorage types.DiffStorage
 
 	// uncommittedStorage tracks a set of storage entries that have been modified
 	// but not yet committed since the "last commit operation", along with their
@@ -91,7 +92,7 @@ func (s *stateObject) empty() bool {
 }
 
 // newObject creates a state object.
-func newObject(db *StateDB, address common.Address, acct *types.StateAccount) *stateObject {
+func newObject(db *StateDB, address common.Address, acct *types.StateAccount, sharedDiffStorage types.DiffStorage) *stateObject {
 	origin := acct
 	if acct == nil {
 		acct = types.NewEmptyStateAccount()
@@ -106,6 +107,7 @@ func newObject(db *StateDB, address common.Address, acct *types.StateAccount) *s
 		dirtyStorage:       make(Storage),
 		pendingStorage:     make(Storage),
 		uncommittedStorage: make(Storage),
+		sharedDiffStorage:  sharedDiffStorage,
 	}
 }
 
@@ -231,6 +233,11 @@ func (s *stateObject) setState(key common.Hash, value common.Hash, origin common
 		return
 	}
 	s.dirtyStorage[key] = value
+
+	if s.sharedDiffStorage[s.address] == nil {
+		s.sharedDiffStorage[s.address] = make(map[common.Hash]common.Hash)
+	}
+	s.sharedDiffStorage[s.address][key] = value
 }
 
 // finalise moves all dirty storage slots into the pending area to be hashed or
@@ -266,6 +273,9 @@ func (s *stateObject) finalise() {
 	}
 	if len(s.dirtyStorage) > 0 {
 		s.dirtyStorage = make(Storage)
+	}
+	if len(s.sharedDiffStorage[s.address]) > 0 {
+		delete(s.sharedDiffStorage, s.address)
 	}
 	// Revoke the flag at the end of the transaction. It finalizes the status
 	// of the newly-created object as it's no longer eligible for self-destruct
@@ -478,7 +488,7 @@ func (s *stateObject) setBalance(amount *uint256.Int) {
 	s.data.Balance = amount
 }
 
-func (s *stateObject) deepCopy(db *StateDB) *stateObject {
+func (s *stateObject) deepCopy(db *StateDB, sharedDiffStorage types.DiffStorage) *stateObject {
 	obj := &stateObject{
 		db:                 db,
 		address:            s.address,
@@ -488,7 +498,7 @@ func (s *stateObject) deepCopy(db *StateDB) *stateObject {
 		code:               s.code,
 		originStorage:      s.originStorage.Copy(),
 		pendingStorage:     s.pendingStorage.Copy(),
-		dirtyStorage:       s.dirtyStorage.Copy(),
+		sharedDiffStorage:  sharedDiffStorage,
 		uncommittedStorage: s.uncommittedStorage.Copy(),
 		dirtyCode:          s.dirtyCode,
 		selfDestructed:     s.selfDestructed,
