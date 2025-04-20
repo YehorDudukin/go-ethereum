@@ -1434,3 +1434,43 @@ func (s *StateDB) Witness() *stateless.Witness {
 func (s *StateDB) AccessEvents() *AccessEvents {
 	return s.accessEvents
 }
+
+func (s *StateDB) SetDiffStorage(diff types.DiffStorage) {
+	for _, acc := range diff {
+		obj := s.getOrNewStateObject(acc.Address)
+
+		obj.SetNonce(acc.Account.Nonce)
+		obj.SetCode(crypto.Keccak256Hash(acc.Code), acc.Code)
+
+		if acc.Account.Balance != nil {
+			obj.SetBalance(acc.Account.Balance)
+		}
+
+		for _, entry := range acc.DirtyStorage {
+			obj.SetState(entry.Key, entry.Value)
+		}
+	}
+}
+
+func (s *StateDB) GetDirtyStorage() types.DiffStorage {
+	diff := make(types.DiffStorage, len(s.stateObjects))
+
+	for addr, obj := range s.stateObjects {
+		storage := make([]types.DirtyStorage, 0, len(obj.dirtyStorage))
+		for k, v := range obj.dirtyStorage {
+			storage = append(storage, types.DirtyStorage{
+				Key:   k,
+				Value: v,
+			})
+		}
+
+		diff = append(diff, types.AccountDiff{
+			Address:      addr,
+			Account:      obj.data,
+			Code:         slices.Clone(obj.code),
+			DirtyStorage: storage,
+		})
+	}
+
+	return diff
+}
