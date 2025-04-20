@@ -1440,8 +1440,11 @@ func (s *StateDB) SetDiffStorage(diff types.DiffStorage) {
 		obj := s.getOrNewStateObject(acc.Address)
 
 		obj.SetNonce(acc.Account.Nonce)
-		obj.SetBalance(acc.Account.Balance)
 		obj.SetCode(crypto.Keccak256Hash(acc.Code), acc.Code)
+
+		if acc.Account.Balance != nil {
+			obj.SetBalance(acc.Account.Balance)
+		}
 
 		for _, entry := range acc.DirtyStorage {
 			obj.SetState(entry.Key, entry.Value)
