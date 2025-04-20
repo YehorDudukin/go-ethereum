@@ -1434,3 +1434,32 @@ func (s *StateDB) Witness() *stateless.Witness {
 func (s *StateDB) AccessEvents() *AccessEvents {
 	return s.accessEvents
 }
+
+func (s *StateDB) SetDiffStorage(diffStorage types.DiffStorage) {
+	for addr, slots := range diffStorage {
+		for key, value := range slots {
+			s.SetState(addr, key, value)
+		}
+	}
+}
+
+func (s *StateDB) GetDirtyStorage() types.DiffStorage {
+	diff := make(types.DiffStorage)
+
+	for addr, obj := range s.stateObjects {
+		if obj == nil || obj.selfDestructed || len(obj.dirtyStorage) == 0 {
+			continue
+		}
+
+		storageDiff := make(map[common.Hash]common.Hash)
+		for key, value := range obj.dirtyStorage {
+			storageDiff[key] = value
+		}
+
+		if len(storageDiff) > 0 {
+			diff[addr] = storageDiff
+		}
+	}
+
+	return diff
+}
