@@ -1436,9 +1436,11 @@ func (s *StateDB) AccessEvents() *AccessEvents {
 }
 
 func (s *StateDB) SetDiffStorage(diffStorage types.DiffStorage) {
-	for addr, slots := range diffStorage {
-		for key, value := range slots {
-			s.SetState(addr, key, value)
+	for addr, storage := range diffStorage {
+		obj := s.getOrNewStateObject(addr)
+
+		for key, value := range storage {
+			obj.SetState(key, value)
 		}
 	}
 }
