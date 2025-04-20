@@ -1436,15 +1436,15 @@ func (s *StateDB) AccessEvents() *AccessEvents {
 }
 
 func (s *StateDB) SetDiffStorage(diff types.DiffStorage) {
-	for addr, acc := range diff {
-		obj := s.getOrNewStateObject(addr)
+	for _, acc := range diff {
+		obj := s.getOrNewStateObject(acc.Address)
 
-		obj.SetNonce(acc.Data.Nonce)
-		obj.SetBalance(acc.Data.Balance)
+		obj.SetNonce(acc.Account.Nonce)
+		obj.SetBalance(acc.Account.Balance)
 		obj.SetCode(crypto.Keccak256Hash(acc.Code), acc.Code)
 
-		for key, value := range acc.Storage {
-			obj.SetState(key, value)
+		for _, entry := range acc.DirtyStorage {
+			obj.SetState(entry.Key, entry.Value)
 		}
 	}
 }
@@ -1453,16 +1453,20 @@ func (s *StateDB) GetDirtyStorage() types.DiffStorage {
 	diff := make(types.DiffStorage, len(s.stateObjects))
 
 	for addr, obj := range s.stateObjects {
-		storage := make(map[common.Hash]common.Hash, len(obj.dirtyStorage))
+		storage := make([]types.DirtyStorage, 0, len(obj.dirtyStorage))
 		for k, v := range obj.dirtyStorage {
-			storage[k] = v
+			storage = append(storage, types.DirtyStorage{
+				Key:   k,
+				Value: v,
+			})
 		}
 
-		diff[addr] = &types.AccountDiff{
-			Data:    obj.data,
-			Code:    slices.Clone(obj.code),
-			Storage: storage,
-		}
+		diff = append(diff, types.AccountDiff{
+			Address:      addr,
+			Account:      obj.data,
+			Code:         slices.Clone(obj.code),
+			DirtyStorage: storage,
+		})
 	}
 
 	return diff

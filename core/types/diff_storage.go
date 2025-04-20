@@ -4,10 +4,16 @@ import (
 	"github.com/YehorDudukin/go-ethereum/common"
 )
 
-type DiffStorage map[common.Address]*AccountDiff
+type DiffStorage []AccountDiff
 
 type AccountDiff struct {
-	Data    StateAccount
-	Code    []byte
-	Storage map[common.Hash]common.Hash
+	Address      common.Address
+	Account      StateAccount
+	Code         []byte
+	DirtyStorage []DirtyStorage
+}
+
+type DirtyStorage struct {
+	Key   common.Hash
+	Value common.Hash
 }
